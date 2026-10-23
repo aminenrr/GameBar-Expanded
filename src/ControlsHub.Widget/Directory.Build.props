@@ -1,3 +1,0 @@
-<Project>
-  <!-- Stops the repo level Directory.Build.props (SDK style settings) from leaking into the classic UWP project. -->
-</Project>
