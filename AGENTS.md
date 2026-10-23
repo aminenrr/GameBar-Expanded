@@ -14,6 +14,7 @@ Read this whole file before you change anything. It is the single source of trut
 * PlayStation prompts only, drawn in the Legend style (cyan ring, white shape). Never Sony art, never colored face buttons.
 * Never inject into games. Anything that draws inside a game goes through RTSS (if the user has it) or a click through window.
 * Mockups are signed off before UI is built. Mockup sources live in `design/mockups/` (Python SVG scripts, rendered PNGs).
+* Security and privacy in every phase (Amine, 2026-10-23): pipes and AppService current user only, strict key allow list and clamping, no network calls, no telemetry, nothing leaves the laptop, least privilege (admin only where truly needed, like HidHide), signed packages, logs hold no personal data. Review each phase for this before handing a build to Amine.
 * Small commits, one feature each. Tags `vX.Y.Z-pN` for prototypes, `vX.Y.Z-betaN` later.
 
 ## What it is
