@@ -4,3 +4,4 @@ obj/
 .vs/
 AppPackages/
 *.pfx
+artifacts/
