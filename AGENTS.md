@@ -74,22 +74,31 @@ Why a broker: the widget is sandboxed and dies when Game Bar closes; profiles mu
 
 Broker language: **C# (.NET 8, NativeAOT)** so it shares the protocol types with the widget and the two WPF apps; NativeAOT keeps RAM low and start fast. If NativeAOT blocks AppService or notifications, fall back to framework dependent .NET 8 and measure.
 
-### Repo layout (target)
+### Repo layout
 
 ```
 AGENTS.md                this file
 README.md
+Directory.Build.props    shared settings for the SDK style projects (the widget opts out)
 design/mockups/          SVG scripts + PNGs (hub tabs, glance strip, prompts, profile flow)
-docs/PROTOCOL.md         pipe protocol, the contract the three apps implement
-docs/ROADMAP.md          future items (perf overlay etc.)
-src/ControlsHub.Protocol/   shared C# messages (netstandard2.0 so UWP can use it)
-src/ControlsHub.Broker/     full trust broker (.NET 8)
-src/ControlsHub.Widget/     UWP Game Bar widget (XAML, C#)
-src/ControlsHub.Package/    Windows Application Packaging Project (MSIX, manifest, assets)
-integrations/alien/      patch notes + code to drop into alien-control
-integrations/dolby/      same for Dolby-Controls
-integrations/dualsense/  Rust module for DualSense-Controls (crates/dsz/src/legend/hub.rs)
-tests/
+docs/P0-TEST.md          Amine's P0 test checklist and results table
+docs/releases/           release notes, one file per tag (used by release.yml)
+docs/PROTOCOL.md         (P1) pipe protocol, the contract the three apps implement
+docs/ROADMAP.md          (later) future items (perf overlay etc.)
+src/ControlsHub.Protocol/   shared C# messages + key schema (netstandard2.0, System.Text.Json, AOT safe)
+src/ControlsHub.Broker/     full trust broker (.NET 8, NativeAOT, WinExe)
+src/ControlsHub.Widget/     UWP Game Bar widget (XAML, C#, classic csproj); building it with
+                            GenerateAppxPackageOnBuild=true produces the whole MSIX
+src/ControlsHub.Package/    package manifest, logos (Assets/, make_assets.py), GameBar/ public folder
+tools/DummyApp/          P0 stand in app: pipe server, keys push preset and nav (--auto for CI)
+tools/SpikeTests/        P0 one off checks: Win+G via SendInput, HidHide hide / unhide timing
+tests/ControlsHub.Protocol.Tests/   xUnit: round trip, unknown key rejected, clamping
+dev/install.ps1          trusts the build's test cert (admin) and installs the MSIX + dependencies
+dev/uninstall.ps1        removes the app (-RemoveCerts also removes the test certs)
+.github/workflows/       build.yml (push to main, dispatch, called by release), release.yml (tags v*)
+integrations/alien/      (P1) patch notes + code to drop into alien-control
+integrations/dolby/      (P1) same for Dolby-Controls
+integrations/dualsense/  (P1) Rust module for DualSense-Controls (crates/dsz/src/legend/hub.rs)
 ```
 
 ### Package manifest essentials
@@ -208,4 +217,26 @@ Window #090A0C, cards #0E1013, borders #1C2127 / #16191E, text #F2F6F9 / #A9B4BF
 
 ## Status
 
-* 2026-10-23: concept, mockups and decisions signed off (see Decisions). Repo created. Nothing built yet. Next: P0 spike.
+* 2026-10-23: concept, mockups and decisions signed off (see Decisions). Repo created.
+* 2026-10-23: **P0 spike built, CI green, waiting for Amine's hardware test** (docs/P0-TEST.md).
+
+### P0: what was built
+
+* **Widget** (`src/ControlsHub.Widget`): classic UWP XAML (C#, .NET Native in Release), Game Bar SDK NuGet `Microsoft.Gaming.XboxGameBar` 7.3.2511061 (picked over 7.3.2607010 because it is older than Amine's Game Bar 7.326, and the newer NuGet's readme had a duplicated interface id). Handles `XboxGameBarWidgetActivatedEventArgs` in `OnActivated` like Microsoft's WidgetSampleCS; also opens normally from Start for testing. One page: Legend dark window, `CONTROLS HUB · P0`, live preset (in its preset color), link status, last 10 nav events, five preset chips with a white 2 px highlight moved by the nav stream (left / right, cross applies, circle clears, L1 / R1 cycle a TAB label). Hosts the in process AppService `ControlsHub.Broker` (`OnBackgroundActivated`, caller package checked) and wakes the broker with `FullTrustProcessLauncher` ("Connect" group) on activation.
+* **Broker** (`src/ControlsHub.Broker`): .NET 8 **NativeAOT works** (WinRT AppService + ValueSet via Windows SDK projection 10.0.19041.57; CI self test passes). 4.9 MB exe. WinExe so nothing flashes at sign in. Pipe client to `\\.\pipe\ControlsHub.Dummy`: hello, sub, state push, set / ack, nav on / off; one connect attempt then backoff 1 s to 30 s; reads block on overlapped IO (no polling). Opens the widget AppService only when the widget asks (named event `Local\ControlsHub.Broker.Connect` from a second `--connect` instance; single instance mutex). Asks the app for nav only while the widget is connected. `--console` opens a console with live state; `--exit` stops a background broker; `--selftest` and `--exit-after` are for CI. Log: `%LOCALAPPDATA%\ControlsHub\broker.log` (packaged: redirected under the package's LocalCache). Working set printed at start and every 50 state changes. Measured on the CI runner (console mode, unpackaged): 11.7 MB at start, 14.0 MB after 50 changes.
+* **Protocol** (`src/ControlsHub.Protocol`): message types, JSON lines codec on Utf8JsonWriter / JsonDocument (no reflection), key schema for alien / dolby / dualsense / dummy (unknown keys rejected, read only keys refused on set, numbers clamped, enums exact). 26 xUnit tests run in CI. DualSense gain ranges are placeholders (0 to 200) until P1 reads the app's real limits.
+* **DummyApp** (`tools/DummyApp`): pipe server, ACL current user only, up to 4 clients. Keys 1 to 5 push the preset, arrows / x / o / s / t / q / e push nav (only to clients that asked for nav). Applies `set` with validation and acks.
+* **SpikeTests** (`tools/SpikeTests`): `wing [s]` (SendInput Win+G after a countdown), `hidhide-list`, `hidhide-hide`, `hidhide-unhide`, `hidhide-time` through HidHideCLI.exe. Never leaves a device hidden (unhide in Dispose, on Ctrl+C and on process exit), refuses devices already on HidHide's list (DualSense Controls may own them), restores the cloak state.
+* **Package**: the widget csproj builds the MSIX with `src/ControlsHub.Package/Package.appxmanifest` (Game Bar extension `ControlsWidget` "Controls", 470 x 650, not resizable, home menu, pinning; appService; fullTrustProcess + StartupTask for `Broker\ControlsHub.Broker.exe`; runFullTrust; Game Bar proxy stub interface ids read from the NuGet's private winmd). No .wapproj: msbuild warns APPX0006 (runFullTrust without a packaging project), harmless for sideloading. CI signs with a throwaway self signed `CN=aminenrr` cert per run; only the .cer is published, no .pfx anywhere.
+* **CI**: `build.yml` on windows-latest (Visual Studio UWP workload, Windows SDK 26100): protocol tests, AOT publish of broker and tools, broker WinRT self test, DummyApp to broker pipe smoke test (60 pushes, checks hello, nav on, state, nav, the 50 change working set line), msbuild of widget + MSIX, signing, artifacts `ControlsHub-package` and `ControlsHub-tools`. `release.yml` on `v*` tags reuses build.yml and attaches the zips, msix, cer and SHA256SUMS to a prerelease.
+
+### P0: known gaps and unverified (needs the laptop)
+
+* Nothing Game Bar related could run in CI: widget listing, pinning, activation, FullTrustProcessLauncher from inside Game Bar, the AppService round trip, StartupTask at sign in, Win+G over games, HidHide, RAM of the packaged broker and the widget. All in docs/P0-TEST.md.
+* If the widget never shows BROKER: check broker.log in the package LocalCache; likely suspects are FullTrustProcessLauncher being blocked when called from a Game Bar activation, or the in process AppService not reaching the running widget process.
+* StartupTask: Windows may need the app launched once from Start before it honours the startup task.
+* Each CI build has a new test cert, so `install.ps1` must run (admin) for every build.
+* Pinned widget keeps the AppService open, so nav keeps flowing while pinned. Fine for P0; P3 should gate nav on the overlay being open.
+* `docs/PROTOCOL.md` not written yet (P1 item 1).
+
+Next: Amine runs docs/P0-TEST.md and fills the results table; findings go here; then P1 after his OK.
