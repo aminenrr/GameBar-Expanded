@@ -241,3 +241,4 @@ Window #090A0C, cards #0E1013, borders #1C2127 / #16191E, text #F2F6F9 / #A9B4BF
 * `docs/PROTOCOL.md` not written yet (P1 item 1).
 
 Next: Amine runs docs/P0-TEST.md and fills the results table; findings go here; then P1 after his OK.
+* 2026-10-23 P0 test finding: Game Bar menus ignored the DualSense in every setup Amine tried (DualSense Controls closed with plain Bluetooth, and DS4Windows in XInput mode). PS still opens it. So a virtual Xbox 360 pad did not get Game Bar navigation either: P3 item 3 (hidden Xbox pad for the rest of Game Bar) needs a fresh spike before we rely on it. P0 checks use the mouse.
