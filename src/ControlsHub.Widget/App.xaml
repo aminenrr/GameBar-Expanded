@@ -1,0 +1,21 @@
+<Application
+    x:Class="ControlsHub.Widget.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    RequestedTheme="Dark">
+    <Application.Resources>
+        <!-- Legend tokens (AGENTS.md, Design tokens). P2 moves these into a full resource dictionary. -->
+        <SolidColorBrush x:Key="LegendWindow" Color="#090A0C" />
+        <SolidColorBrush x:Key="LegendCard" Color="#0E1013" />
+        <SolidColorBrush x:Key="LegendBorder" Color="#1C2127" />
+        <SolidColorBrush x:Key="LegendBorderSoft" Color="#16191E" />
+        <SolidColorBrush x:Key="LegendText" Color="#F2F6F9" />
+        <SolidColorBrush x:Key="LegendText2" Color="#A9B4BF" />
+        <SolidColorBrush x:Key="LegendText3" Color="#6E7A86" />
+        <SolidColorBrush x:Key="LegendCyan" Color="#00E5FF" />
+        <SolidColorBrush x:Key="LegendPurple" Color="#7C4DFF" />
+        <SolidColorBrush x:Key="LegendOrange" Color="#FF8A3D" />
+        <SolidColorBrush x:Key="LegendGreen" Color="#40DC78" />
+        <FontFamily x:Key="LegendMono">Consolas</FontFamily>
+    </Application.Resources>
+</Application>
